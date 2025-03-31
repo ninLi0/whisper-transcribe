@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Whisper Transcription App{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="upload-form">
+            <h4>Upload File for Transcription</h4>
+            <form action="{{ url_for('upload_file') }}" method="post" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label for="file" class="form-label">Select audio/video file:</label>
+                    <input type="file" class="form-control" id="file" name="file" required>
+                    <div class="form-text">Supported formats: MP4, AVI, MOV, MP3, WAV, FLAC, M4A</div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="model" class="form-label">Whisper Model:</label>
+                            <select class="form-select" id="model" name="model">
+                                <option value="tiny">Tiny (fastest, less accurate)</option>
+                                <option value="base">Base</option>
+                                <option value="small" selected>Small (recommended)</option>
+                                <option value="medium">Medium</option>
+                                <option value="large">Large (slowest, most accurate)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="sentences" class="form-label">Sentences per paragraph:</label>
+                            <input type="number" class="form-control" id="sentences" name="sentences" value="3" min="1" max="10">
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Upload & Transcribe</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <h4>Recent Transcripts</h4>
+        {% if transcripts %}
+            <div class="row">
+                {% for transcript in transcripts %}
+                <div class="col-md-6">
+                    <div class="card transcript-card">
+                        <div class="card-header">
+                            {{ transcript.name }}
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text">
+                                Last modified: {{ transcript.date_modified|timestamp_to_date }}
+                            </p>
+                            <div class="d-flex">
+                                <a href="{{ url_for('view_transcript', filename=transcript.name) }}" class="btn btn-primary me-2">View</a>
+                                <a href="{{ url_for('download_transcript', filename=transcript.name) }}" class="btn btn-secondary me-2">Download</a>
+                                <form action="{{ url_for('delete_transcript', filename=transcript.name) }}" method="post" onsubmit="return confirm('Are you sure you want to delete this transcript?');">
+                                    <button type="submit" class="btn btn-danger">Delete</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                No transcripts available. Upload a file to create your first transcript.
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

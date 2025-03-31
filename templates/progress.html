@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block title %}Transcription Progress{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Transcribing: {{ filename }}</h5>
+                <div id="status-badge" class="badge bg-info">Initializing...</div>
+            </div>
+            <div class="card-body">
+                <div class="progress mb-3">
+                    <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                         role="progressbar" style="width: 10%"></div>
+                </div>
+                
+                <div class="terminal-output">
+                    <div id="output-container" class="bg-dark text-light p-3 rounded" style="height: 300px; overflow-y: auto; font-family: monospace;">
+                        <div>Starting transcription process...</div>
+                    </div>
+                </div>
+                
+                <div id="completion-message" class="alert alert-success mt-3" style="display: none;">
+                    <h5>Transcription Complete!</h5>
+                    <p>Your transcript has been successfully generated.</p>
+                    <div class="d-flex">
+                        <a id="view-link" href="#" class="btn btn-primary me-2">View Transcript</a>
+                        <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Home</a>
+                    </div>
+                </div>
+                
+                <div id="error-message" class="alert alert-danger mt-3" style="display: none;">
+                    <h5>Transcription Failed</h5>
+                    <p id="error-details">An error occurred during the transcription process.</p>
+                    <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Home</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const outputContainer = document.getElementById('output-container');
+        const progressBar = document.getElementById('progress-bar');
+        const statusBadge = document.getElementById('status-badge');
+        const completionMessage = document.getElementById('completion-message');
+        const errorMessage = document.getElementById('error-message');
+        const errorDetails = document.getElementById('error-details');
+        const viewLink = document.getElementById('view-link');
+        
+        // Function to auto-scroll to bottom of the terminal output
+        function scrollToBottom() {
+            outputContainer.scrollTop = outputContainer.scrollHeight;
+        }
+        
+        // Connect to the event stream
+        const evtSource = new EventSource("{{ url_for('progress_stream', job_id=job_id) }}");
+        
+        // Progress tracking variables
+        let progressStage = 0;
+        const progressStages = {
+            'preparing': 10,
+            'processing': 30,
+            'finalizing': 70,
+            'formatting': 85,
+            'saving': 95,
+            'complete': 100
+        };
+        
+        // Handle incoming events
+        evtSource.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            
+            // Skip heartbeat messages
+            if (data.status === 'heartbeat') {
+                return;
+            }
+            
+            // Handle different status types
+            if (data.status === 'processing') {
+                // For progress updates, add to the output container
+                const line = document.createElement('div');
+                line.textContent = data.message;
+                outputContainer.appendChild(line);
+                scrollToBottom();
+                
+                // Update progress bar - start at 30% and move toward 70% as we process
+                if (progressBar.style.width < '70%') {
+                    const currentWidth = parseInt(progressBar.style.width);
+                    const newWidth = Math.min(currentWidth + 1, 70);
+                    progressBar.style.width = newWidth + '%';
+                }
+            }
+            else if (data.status === 'error') {
+                // Show error message
+                errorDetails.textContent = data.message;
+                errorMessage.style.display = 'block';
+                statusBadge.className = 'badge bg-danger';
+                statusBadge.textContent = 'Error';
+                
+                // Add to terminal output
+                const line = document.createElement('div');
+                line.textContent = 'ERROR: ' + data.message;
+                line.style.color = '#ff6b6b';
+                outputContainer.appendChild(line);
+                scrollToBottom();
+                
+                // Close the event source
+                evtSource.close();
+            }
+            else if (data.status === 'complete') {
+                // Show completion message and update progress
+                completionMessage.style.display = 'block';
+                progressBar.style.width = '100%';
+                progressBar.className = 'progress-bar bg-success';
+                statusBadge.className = 'badge bg-success';
+                statusBadge.textContent = 'Complete';
+                
+                // Add to terminal output
+                const line = document.createElement('div');
+                line.textContent = data.message;
+                line.style.color = '#51cf66';
+                outputContainer.appendChild(line);
+                scrollToBottom();
+                
+                // Update link to view the transcript
+                const resultPath = data.result;
+                const fileName = resultPath.split('/').pop();
+                viewLink.href = `/view/${fileName}`;
+                
+                // Close the event source
+                evtSource.close();
+            }
+            else {
+                // For all other status updates
+                const line = document.createElement('div');
+                line.textContent = data.status.toUpperCase() + ': ' + data.message;
+                outputContainer.appendChild(line);
+                scrollToBottom();
+                
+                // Update progress bar based on stage
+                if (progressStages[data.status]) {
+                    progressBar.style.width = progressStages[data.status] + '%';
+                }
+                
+                // Update status badge
+                statusBadge.textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1);
+            }
+        };
+        
+        // Handle errors with the event source connection
+        evtSource.onerror = function() {
+            const line = document.createElement('div');
+            line.textContent = 'Connection lost. The server may be unavailable or the process has completed.';
+            line.style.color = '#ff8787';
+            outputContainer.appendChild(line);
+            scrollToBottom();
+            
+            evtSource.close();
+        };
+    });
+</script>
+{% endblock %}
