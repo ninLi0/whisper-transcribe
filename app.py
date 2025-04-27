@@ -255,7 +255,7 @@ def progress_stream(job_id):
         progress_queue = active_jobs[job_id]['queue']
         
         # We'll wait for updates for up to 30 minutes (1800 seconds)
-        end_time = time.time() + 1800
+        end_time = time.time() + 1800000
         
         while time.time() < end_time:
             try:

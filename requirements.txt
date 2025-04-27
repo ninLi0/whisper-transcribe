@@ -40,3 +40,12 @@ typing_extensions==4.12.2
 urllib3==2.3.0
 wheel==0.45.1
 whisper-mps @ git+https://github.com/AtomGradient/whisper-mps.git@0c73ed131d0a7e7f16b75e3abdd5a15b77a84b31
+torch>=2.0.0
+tqdm>=4.64.0
+openai-whisper>=20230314
+numpy>=1.20.0
+ffmpeg-python>=0.2.0
+transformers>=4.30.0
+setuptools>=65.5.1
+wheel>=0.38.0
+regex>=2022.0.0
